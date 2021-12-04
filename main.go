@@ -51,7 +51,6 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(2)
 
 	// Start measurements reader
 	go func() {
@@ -59,10 +58,10 @@ func main() {
 		if err == io.EOF {
 			cancel()
 		}
-		wg.Done()
 	}()
 
 	// Start process measurements
+	wg.Add(1)
 	go func() {
 		pub.ProcessMeasurements(ctx, ch)
 		wg.Done()
