@@ -64,7 +64,7 @@ func (e *EventPublisher) storeMeasurement(i int, m ValueTime) {
 
 // ProcessMeasurements reads ValueTime from input and publishes event if there is change
 // in the measurement that matches the publish rules.
-func (e *EventPublisher) ReadMeasurements(ctx context.Context, input <-chan ValueTime) {
+func (e *EventPublisher) ProcessMeasurements(ctx context.Context, input <-chan ValueTime) {
 	var measurement ValueTime
 	var lastValue, i int
 

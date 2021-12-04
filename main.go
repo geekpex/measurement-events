@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -49,14 +50,25 @@ func main() {
 		Output: os.Stdout,
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Start measurements reader
 	go func() {
 		err := measurementReader(ctx, os.Stdin, exitWhenDone, ch)
 		if err == io.EOF {
 			cancel()
 		}
+		wg.Done()
 	}()
-	go pub.ReadMeasurements(ctx, ch)
 
+	// Start process measurements
+	go func() {
+		pub.ProcessMeasurements(ctx, ch)
+		wg.Done()
+	}()
+
+	// Exit safely if Interrupt or SIGTERM is received
 	var exit = make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
 
@@ -67,4 +79,6 @@ func main() {
 		// just a usablity thing when exiting using Ctrl+C
 		fmt.Println()
 	}
+	// Wait for all pending work to finish
+	wg.Wait()
 }
