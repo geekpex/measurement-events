@@ -11,9 +11,10 @@ type Event struct {
 }
 
 type EventPublisher struct {
-	uEvents [5][]Event
-	times   [5][2]int
-	Output  io.Writer
+	uEvents   [5][]Event
+	times     [5][2]int
+	Output    io.Writer
+	NoHeaders bool
 }
 
 // publishEvents writes stored events to e.output
@@ -67,6 +68,11 @@ func (e *EventPublisher) storeMeasurement(i int, m ValueTime) {
 func (e *EventPublisher) ProcessMeasurements(ctx context.Context, input <-chan ValueTime) {
 	var measurement ValueTime
 	var lastValue, i int
+
+	if !e.NoHeaders {
+		// Print headers
+		fmt.Fprint(e.Output, "Start Time,End Time,Level\n")
+	}
 
 	for {
 		select {

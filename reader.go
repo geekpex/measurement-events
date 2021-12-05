@@ -66,39 +66,42 @@ func measurementReader(ctx context.Context, input io.Reader, exitWhenDone bool, 
 	var measurement ValueTime
 
 	for {
-		select {
-		case <-ctx.Done():
+		// exit if ctx has been cancelled
+		if ctx.Err() != nil {
 			return nil
-		default:
-			n, err := input.Read(readBuf)
-			if err != nil && err != io.EOF {
-				panic("Failed to read from stdin: " + err.Error())
-			}
+		}
 
-			if n == 0 {
+		n, err := input.Read(readBuf)
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			panic("Failed to read from stdin: " + err.Error())
+		}
+
+		if n == 0 {
+			continue
+		}
+
+		for i := 0; i < n; i++ {
+			buf = append(buf, readBuf[i])
+			if readBuf[i] != '\n' {
 				continue
 			}
 
-			for i := 0; i < n; i++ {
-				buf = append(buf, readBuf[i])
-				if readBuf[i] != '\n' {
-					continue
-				}
-
-				measurement, err = ParseValueTime(buf)
-				if err != nil && err != ErrIgnoreValue {
-					fmt.Fprintf(os.Stderr, "Received invalid input: %s\n", err.Error())
-					buf = buf[:0]
-					continue
-				}
-
-				output <- measurement
+			measurement, err = ParseValueTime(buf)
+			if err != nil && err != ErrIgnoreValue {
+				fmt.Fprintf(os.Stderr, "Received invalid input: %s\n", err.Error())
 				buf = buf[:0]
+				continue
 			}
 
-			if exitWhenDone && n < len(readBuf) {
-				return io.EOF
-			}
+			output <- measurement
+			buf = buf[:0]
 		}
+
+		if exitWhenDone && n < len(readBuf) {
+			return io.EOF
+		}
+
 	}
 }
