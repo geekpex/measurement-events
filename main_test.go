@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
+	"path"
 	"sync"
 	"testing"
 )
@@ -11,6 +13,62 @@ func BenchmarkProcessing(b *testing.B) {
 	outputBuf.Grow(len(expectedOutput))
 
 	input := bytes.NewReader(inputData)
+
+	ev := NewEventPublisher(outputBuf)
+
+	var ctx context.Context
+	var cancel func()
+
+	ch := make(chan ValueTime)
+	var wg sync.WaitGroup
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		outputBuf.Reset()
+		input.Reset(inputData)
+		ev.Reset()
+
+		ctx, cancel = context.WithCancel(context.Background())
+
+		wg.Add(2)
+		b.StartTimer()
+		go func() {
+			measurementReader(ctx, input, true, ch)
+			cancel()
+			wg.Done()
+		}()
+
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					wg.Done()
+					return
+				case <-ch:
+				}
+			}
+
+			// ev.ProcessMeasurements(ctx, ch)
+			// wg.Done()
+		}()
+
+		wg.Wait()
+
+		// if !bytes.Equal(outputBuf.Bytes(), expectedOutput) {
+		// 	b.Fatalf("Output does not match expected data:\n%s\n%s\n", outputBuf.String(), string(expectedOutput))
+		// }
+	}
+
+}
+
+func BenchmarkProcessingTenThousand(b *testing.B) {
+	outputBuf.Grow(500 * 1024)
+
+	input := bytes.NewReader(tenThousandInput)
+
+	ev := NewEventPublisher(outputBuf)
 
 	var ctx context.Context
 	var cancel func()
@@ -22,12 +80,10 @@ func BenchmarkProcessing(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		outputBuf.Reset()
-		input.Reset(inputData)
+		input.Reset(tenThousandInput)
+		ev.Reset()
 
 		ctx, cancel = context.WithCancel(context.Background())
-		ev := &EventPublisher{
-			Output: outputBuf,
-		}
 
 		wg.Add(2)
 		go func() {
@@ -43,7 +99,7 @@ func BenchmarkProcessing(b *testing.B) {
 
 		wg.Wait()
 
-		if !bytes.Equal(outputBuf.Bytes(), expectedOutput) {
+		if !bytes.Equal(outputBuf.Bytes(), expectedTenThousand) {
 			b.Fatalf("Output does not match expected data:\n%s\n%s\n", outputBuf.String(), string(expectedOutput))
 		}
 	}
@@ -85,4 +141,7 @@ var (
 37,38,2
 `)
 	outputBuf = &bytes.Buffer{}
+
+	tenThousandInput, _    = ioutil.ReadFile(path.Join("testdata", "10000_rows.csv"))
+	expectedTenThousand, _ = ioutil.ReadFile(path.Join("testdata", "expected_10000_rows.csv"))
 )

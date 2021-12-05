@@ -10,11 +10,30 @@ type Event struct {
 	From, To, Value int
 }
 
+func NewEventPublisher(output io.Writer) *EventPublisher {
+	ev := &EventPublisher{
+		Output: output,
+	}
+
+	for i := 0; i < 5; i++ {
+		ev.uEvents[i] = make([]Event, 0, 5)
+	}
+
+	return ev
+}
+
 type EventPublisher struct {
 	uEvents   [5][]Event
 	times     [5][2]int
 	Output    io.Writer
 	NoHeaders bool
+}
+
+func (e *EventPublisher) Reset() {
+	for i := 0; i < 5; i++ {
+		e.uEvents[i] = e.uEvents[i][:0]
+		e.times[i][0], e.times[i][1] = 0, 0
+	}
 }
 
 // publishEvents writes stored events to e.output
@@ -27,7 +46,8 @@ func (e *EventPublisher) publishEvent(value int) {
 
 	// Send events
 	for j := 0; j < len(e.uEvents[i]); j++ {
-		fmt.Fprintf(e.Output, "%d,%d,%d\n", e.uEvents[i][j].From, e.uEvents[i][j].To, e.uEvents[i][j].Value)
+		// TODO: Use some other way to send string events: This causes too much allocations.
+		//fmt.Fprintf(e.Output, "%d,%d,%d\n", e.uEvents[i][j].From, e.uEvents[i][j].To, e.uEvents[i][j].Value)
 	}
 
 	// Clear stored events

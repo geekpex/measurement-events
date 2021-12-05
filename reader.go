@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"unsafe"
 )
 
@@ -33,15 +32,16 @@ loop:
 	for i := 0; i < len(p); i++ {
 		switch p[i] {
 		case ',':
-			v.Time, err = strconv.Atoi(String(p[:i]))
+			//v.Time, err = strconv.Atoi(String(p[:i]))
 			if err != nil {
 				// time is not integer
 				err = ErrIgnoreValue
 				return
 			}
 			j = i + 1
+			_ = j
 		case '\n', '\r':
-			v.Value, err = strconv.Atoi(String(p[j:i]))
+			//v.Value, err = strconv.Atoi(String(p[j:i]))
 			if err != nil {
 				// value is not integer
 				err = ErrIgnoreValue
@@ -65,13 +65,16 @@ func measurementReader(ctx context.Context, input io.Reader, exitWhenDone bool, 
 	var buf = make([]byte, 0, 32)
 	var measurement ValueTime
 
+	var n int
+	var err error
+
 	for {
 		// exit if ctx has been cancelled
 		if ctx.Err() != nil {
 			return nil
 		}
 
-		n, err := input.Read(readBuf)
+		n, err = input.Read(readBuf)
 		if err == io.EOF {
 			return err
 		} else if err != nil {
