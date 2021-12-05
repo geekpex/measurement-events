@@ -73,7 +73,7 @@ func measurementReader(ctx context.Context, input io.Reader, exitWhenDone bool, 
 
 		n, err := input.Read(readBuf)
 		if err == io.EOF {
-			return nil
+			return err
 		} else if err != nil {
 			panic("Failed to read from stdin: " + err.Error())
 		}

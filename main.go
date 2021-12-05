@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -35,6 +36,11 @@ func main() {
 	var exitWhenDone = true
 	var noHeaders bool
 
+	// Not that ideal solution, but in windows Ctrl+C also closes STDIN, but that does not happen in linux.
+	// So in windows, the program waits for "clean" exist and in linux the STDIN reading is closed by exiting program.
+	// If clean exit is wanted in linux, the Ctrl+D can be used (Sends EOF).
+	var inWindows = runtime.GOOS == "windows"
+
 	for i := 1; i < len(os.Args); i++ {
 		switch strings.ToLower(os.Args[i]) {
 		case "-k", "--keep-running":
@@ -56,19 +62,25 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
+	if inWindows {
+		wg.Add(2)
+	} else {
+		wg.Add(1)
+	}
 
 	// Start measurements reader
-	wg.Add(1)
 	go func() {
 		err := measurementReader(ctx, os.Stdin, exitWhenDone, ch)
 		if err == io.EOF {
 			cancel()
 		}
-		wg.Done()
+
+		if inWindows {
+			wg.Done()
+		}
 	}()
 
 	// Start process measurements
-	wg.Add(1)
 	go func() {
 		pub.ProcessMeasurements(ctx, ch)
 		wg.Done()
